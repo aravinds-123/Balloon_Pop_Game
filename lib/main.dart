@@ -1,94 +1,85 @@
 import 'dart:async';
-import 'dart:math';
-
+import 'dart:math'; // Import the 'dart:math' library
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(BalloonPopGame());
+  runApp(MyApp());
 }
 
-class BalloonPopGame extends StatelessWidget {
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: BalloonPopScreen(),
+      title: 'Balloon Popper',
+      home: GameScreen(),
     );
   }
 }
 
-class BalloonPopScreen extends StatefulWidget {
+class GameScreen extends StatefulWidget {
   @override
-  _BalloonPopScreenState createState() => _BalloonPopScreenState();
+  _GameScreenState createState() => _GameScreenState();
 }
 
-class _BalloonPopScreenState extends State<BalloonPopScreen> {
+class _GameScreenState extends State<GameScreen> {
   int score = 0;
-  int missed = 0;
-  late Timer _timer;
-  Duration _duration = const Duration(minutes: 2);
-  late List<Balloon> balloons;
+  int missedBalloons = 0;
+  Timer? timer;
+  int timeRemaining = 120; // 2 minutes in seconds
+  List<Balloon> balloons = [];
+  final Random _random = Random(); // Create a single instance of Random
 
   @override
   void initState() {
     super.initState();
-    startTimer();
-    balloons = [];
-    generateBalloons();
+    startGame();
   }
 
-  @override
-  void dispose() {
-    _timer.cancel();
-    super.dispose();
-  }
-
-  void startTimer() {
-    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+  void startGame() {
+    timer = Timer.periodic(Duration(seconds: 1), (Timer t) {
       setState(() {
-        if (_duration.inSeconds == 0) {
-          timer.cancel();
-          showEndScreen();
+        timeRemaining--;
+        if (timeRemaining == 0) {
+          t.cancel();
+          showGameOverDialog();
         } else {
-          _duration -= Duration(seconds: 1);
+          addBalloon();
         }
       });
     });
   }
 
-  void generateBalloons() {
-    Timer.periodic(Duration(milliseconds: 1500), (timer) {
-      if (_duration.inSeconds == 0) {
-        timer.cancel();
-      } else {
-        setState(() {
-          balloons.add(Balloon(Random().nextInt(300) + 50));
-        });
-      }
-    });
+  void addBalloon() {
+    balloons.add(Balloon(
+      top: 1.0,
+      left: _random.nextDouble(), // Use the instance variable _random
+      size: 50.0,
+    ));
   }
 
   void popBalloon(Balloon balloon) {
     setState(() {
-      if (!balloon.popped) {
-        if (balloon.position >= 200) {
-          score += 2;
-        } else {
-          missed++;
-        }
-        balloon.pop();
-      }
+      balloons.remove(balloon);
+      score += 2;
     });
   }
 
-  void showEndScreen() {
+  void missBalloon(Balloon balloon) {
+    setState(() {
+      balloons.remove(balloon);
+      missedBalloons++;
+      score--;
+    });
+  }
+
+  void showGameOverDialog() {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text("Game Over"),
-          content: Text("Score: $score\nBalloons Missed: $missed"),
-          actions: <Widget>[
+          title: Text('Game Over'),
+          content: Text('Your score is $score'),
+          actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
@@ -105,70 +96,76 @@ class _BalloonPopScreenState extends State<BalloonPopScreen> {
   void resetGame() {
     setState(() {
       score = 0;
-      missed = 0;
-      _duration = Duration(minutes: 2);
+      missedBalloons = 0;
+      timeRemaining = 120;
       balloons.clear();
-      startTimer();
-      generateBalloons();
     });
+    startGame();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Balloon Pop Game'),
+        title: Text('Balloon Popper'),
       ),
-      body: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
+      body: Stack(
         children: [
-          Text(
-            'Time Left: ${_duration.inMinutes}:${(_duration.inSeconds % 60).toString().padLeft(2, '0')}',
-            style: TextStyle(fontSize: 24),
-          ),
-          SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Balloons Popped: $score',
-                style: TextStyle(fontSize: 20, color: Colors.green),
-              ),
-              SizedBox(width: 20),
-              Text(
-                'Balloons Missed: $missed',
-                style: TextStyle(fontSize: 20, color: Colors.red),
-              ),
-            ],
-          ),
-          Expanded(
-            child: GestureDetector(
-              onTapDown: (TapDownDetails details) {
-                Offset position = details.localPosition;
-                for (Balloon balloon in balloons) {
-                  if (balloon.isTapped(position)) {
-                    popBalloon(balloon);
-                    break;
-                  }
-                }
-              },
-              child: Stack(
-                children: [
-                  Container(
-                    color: Colors.lightBlueAccent,
-                  ),
-                  ...balloons.map((balloon) {
-                    return Positioned(
-                      left: balloon.position.toDouble(),
-                      bottom: balloon.height.toDouble(),
-                      child: balloon.widget,
-                    );
-                  }).toList(),
-                ],
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.blue, Colors.cyan],
               ),
             ),
           ),
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Text(
+              'Score: $score',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 10,
+            right: 10,
+            child: Text(
+              'Missed: $missedBalloons',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 50,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Text(
+                '${Duration(seconds: timeRemaining).inMinutes.remainder(60).toString().padLeft(2, '0')}:${Duration(seconds: timeRemaining).inSeconds.remainder(60).toString().padLeft(2, '0')}',
+                style: TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          ...balloons.map((balloon) {
+            return BalloonWidget(
+              balloon: balloon,
+              onTap: popBalloon,
+              onMiss: missBalloon,
+            );
+          }).toList(),
         ],
       ),
     );
@@ -176,33 +173,81 @@ class _BalloonPopScreenState extends State<BalloonPopScreen> {
 }
 
 class Balloon {
-  final double position;
-  final double height;
-  bool popped;
+  double top;
+  double left;
+  double size;
 
-  Balloon(this.position, {this.height = 0, this.popped = false});
+  Balloon({
+    required this.top,
+    required this.left,
+    required this.size,
+  });
+}
 
-  void pop() {
-    popped = true;
+class BalloonWidget extends StatefulWidget {
+  final Balloon balloon;
+  final Function(Balloon) onTap;
+  final Function(Balloon) onMiss;
+
+  BalloonWidget({
+    required this.balloon,
+    required this.onTap,
+    required this.onMiss,
+  });
+
+  @override
+  _BalloonWidgetState createState() => _BalloonWidgetState();
+}
+
+class _BalloonWidgetState extends State<BalloonWidget> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: Duration(seconds: 5),
+      vsync: this,
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          widget.onMiss(widget.balloon);
+        }
+      });
+    _animation = Tween<double>(begin: 1.0, end: -1.0).animate(_controller);
+    _controller.forward();
   }
 
-  Widget get widget {
-    return popped
-        ? SizedBox()
-        : GestureDetector(
-            onTap: () {},
-            child: Image.asset(
-              'D:\Downloads\Blue-Balloons-Transparent.png',
-              width: 50,
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (BuildContext context, Widget? child) {
+        return Positioned(
+          top: _animation.value * MediaQuery.of(context).size.height,
+          left: widget.balloon.left * MediaQuery.of(context).size.width,
+          child: GestureDetector(
+            onTap: () {
+              widget.onTap(widget.balloon);
+              _controller.stop();
+            },
+            child: Container(
+              width: widget.balloon.size,
+              height: widget.balloon.size,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.red,
+              ),
             ),
-          );
-  }
-
-  bool isTapped(Offset tapPosition) {
-    double tapX = tapPosition.dx;
-    double tapY = tapPosition.dy;
-    double balloonX = position + 25;
-    double balloonY = 600 - height - 50;
-    return (tapX >= balloonX && tapX <= balloonX + 50 && tapY >= balloonY && tapY <= balloonY + 100);
+          ),
+        );
+      },
+    );
   }
 }
